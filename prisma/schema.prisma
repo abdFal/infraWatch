@@ -1,0 +1,98 @@
+// Prisma schema for the AWS Infrastructure Monitoring Dashboard.
+//
+// Prisma 7 notes:
+// - The database URL is NOT defined here. It lives in prisma.config.ts and is
+//   read from the DATABASE_URL environment variable.
+// - The client is generated into src/generated/prisma (git-ignored) and
+//   connects through the `pg` driver adapter (see src/lib/db.ts).
+//
+// Security note: AWS credentials are never stored in this database.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  VIEWER
+}
+
+enum TimeRange {
+  H1
+  H3
+  H6
+  H12
+  H24
+}
+
+enum ActivityAction {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  SETTINGS_UPDATED
+  PREFERENCES_UPDATED
+  PROVIDER_ERROR
+  SYSTEM
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         Role      @default(VIEWER)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  preference       MonitoringPreference?
+  activityLogs     ActivityLog[]
+  settingsUpdates  AppSettings[]
+
+  @@map("users")
+}
+
+// Singleton row (id = 1) holding application-wide configuration.
+model AppSettings {
+  id          Int      @id @default(1)
+  awsRegion   String
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("app_settings")
+}
+
+// Per-user monitoring preferences.
+model MonitoringPreference {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // 0 = auto-refresh disabled
+  refreshIntervalSec Int       @default(60)
+  defaultTimeRange   TimeRange @default(H3)
+  updatedAt          DateTime  @updatedAt
+
+  @@map("monitoring_preferences")
+}
+
+model ActivityLog {
+  id          String         @id @default(cuid())
+  action      ActivityAction
+  description String
+  // Small, non-sensitive context only (never secrets or passwords).
+  metadata    Json?
+  ipAddress   String?
+  userId      String?
+  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt   DateTime       @default(now())
+
+  @@index([createdAt])
+  @@index([action, createdAt])
+  @@map("activity_logs")
+}
