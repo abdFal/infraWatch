@@ -9,10 +9,11 @@ import { buttonClasses } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
+import { SourceBadge } from "@/components/ui/source-badge";
 import { InstanceStateBadge, StatusCheckBadge } from "@/components/ui/status-badge";
 import { useApi } from "@/lib/hooks/use-api";
 import type { TimeRangeKey } from "@/lib/time-ranges";
-import type { Ec2Instance } from "@/lib/types";
+import { sourceSlug, type DataSource, type Ec2Instance } from "@/lib/types";
 import { formatDateTime, formatUptime } from "@/lib/utils";
 
 function Field({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
@@ -24,10 +25,10 @@ function Field({ label, value, mono }: { label: string; value: React.ReactNode; 
   );
 }
 
-export function InstanceDetailView({ instanceId }: { instanceId: string }) {
+export function InstanceDetailView({ source, instanceId }: { source: DataSource; instanceId: string }) {
   const { defaultTimeRange } = useDashboard();
   const [range, setRange] = useState<TimeRangeKey>(defaultTimeRange);
-  const { data: instance, error, isLoading, refetch } = useApi<Ec2Instance>(`/api/instances/${instanceId}`);
+  const { data: instance, error, isLoading, refetch } = useApi<Ec2Instance>(`/api/instances/${sourceSlug(source)}/${instanceId}`);
 
   const back = (
     <Link href="/instances" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900">
@@ -75,11 +76,12 @@ export function InstanceDetailView({ instanceId }: { instanceId: string }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="truncate text-xl font-semibold tracking-tight text-slate-900">{instance.name ?? "(no name)"}</h1>
+            <SourceBadge source={instance.source} />
             <InstanceStateBadge state={instance.state} />
           </div>
           <p className="mt-1 font-mono text-sm text-slate-500">{instance.instanceId}</p>
         </div>
-        <Link href={`/monitoring?instance=${instance.instanceId}&range=${range}`} className={buttonClasses({ size: "sm" })}>
+        <Link href={`/monitoring?source=${sourceSlug(instance.source)}&instance=${instance.instanceId}&range=${range}`} className={buttonClasses({ size: "sm" })}>
           <LineChart className="size-4" /> Open in Monitoring
         </Link>
       </div>
@@ -88,6 +90,7 @@ export function InstanceDetailView({ instanceId }: { instanceId: string }) {
         <Card className="lg:col-span-2">
           <CardHeader title="Instance details" />
           <dl className="grid grid-cols-1 gap-x-6 gap-y-4 px-5 py-4 sm:grid-cols-2 xl:grid-cols-3">
+            <Field label="Data source" value={instance.source === "AWS" ? "AWS (your account)" : "Mock (generated demo data)"} />
             <Field label="Instance ID" value={instance.instanceId} mono />
             <Field label="Instance type" value={instance.instanceType} mono />
             <Field label="State" value={<InstanceStateBadge state={instance.state} />} />
@@ -108,7 +111,7 @@ export function InstanceDetailView({ instanceId }: { instanceId: string }) {
 
         <div className="space-y-6">
           <Card>
-            <CardHeader title="Status checks" description="Reported by EC2" />
+            <CardHeader title="Status checks" description={instance.source === "AWS" ? "Reported by EC2" : "Generated demo values"} />
             <dl className="space-y-3 px-5 py-4">
               <div className="flex items-center justify-between gap-2">
                 <dt className="text-sm text-slate-600">System reachability</dt>
@@ -138,7 +141,7 @@ export function InstanceDetailView({ instanceId }: { instanceId: string }) {
         </div>
       </div>
 
-      <InstanceMetricsPanel instanceId={instance.instanceId} range={range} onRangeChange={setRange} />
+      <InstanceMetricsPanel source={instance.source} instanceId={instance.instanceId} range={range} onRangeChange={setRange} />
     </>
   );
 }

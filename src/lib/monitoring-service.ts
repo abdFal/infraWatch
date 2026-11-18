@@ -1,67 +1,132 @@
 import "server-only";
 import { logActivity } from "@/lib/activity";
-import { getMonitoringProvider, ProviderError } from "@/lib/providers";
+import { getEnabledSources, getProvider, isSourceEnabled, ProviderError } from "@/lib/providers";
 import { getActiveRegion } from "@/lib/settings";
 import type { TimeRangeKey } from "@/lib/time-ranges";
 import {
   TRANSITIONAL_STATES,
+  type DataSource,
   type Ec2Instance,
   type InfrastructureSummary,
   type InstanceMetrics,
   type InstanceState,
   type OverallStatus,
   type Paginated,
+  type SourceStatus,
 } from "@/lib/types";
 
 /**
- * Application-level monitoring logic that sits between API routes and the
- * provider: region selection, short-lived caching, search/filter/pagination,
- * summary calculations and error logging. It is provider-agnostic.
+ * The unified monitoring service. API routes call only this module; it:
+ *   - asks every enabled source (AWS and/or MOCK) for its instances in parallel
+ *   - merges them, keyed by (source, instanceId), so nothing is duplicated
+ *   - reports each source's status, so a failing source is visible, not hidden
+ *   - caches lists briefly, searches, filters, paginates and summarises
+ *   - routes detail/metrics requests to the provider that owns the instance
  */
 
 const LIST_CACHE_TTL_MS = 15_000;
-const listCache = new Map<string, { at: number; data: Ec2Instance[] }>();
+/** Cached per source+region. Failures are cached too, so a broken AWS setup isn't retried on every request. */
+const listCache = new Map<string, { at: number; promise: Promise<Ec2Instance[]> }>();
 const lastErrorLogged = new Map<string, number>();
 
-async function withProviderErrorLogging<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+function asProviderError(error: unknown): ProviderError {
+  return error instanceof ProviderError
+    ? error
+    : new ProviderError("UNAVAILABLE", "The monitoring provider is currently unavailable.", { cause: error });
+}
+
+async function reportProviderError(source: DataSource, operation: string, error: unknown): Promise<ProviderError> {
+  const providerError = asProviderError(error);
+  // Full details (including the raw AWS message) go to the server log only.
+  console.error(`[monitoring] ${source} ${operation} failed: ${providerError.code}`, providerError.cause ?? providerError);
+
+  // Write to the activity log at most once per minute per source + error code.
+  const key = `${source}:${providerError.code}`;
+  const now = Date.now();
+  if (now - (lastErrorLogged.get(key) ?? 0) > 60_000) {
+    lastErrorLogged.set(key, now);
+    await logActivity({
+      action: "PROVIDER_ERROR",
+      description: `${source} · ${operation}: ${providerError.message}`,
+      metadata: { source, code: providerError.code },
+    });
+  }
+  return providerError;
+}
+
+async function withErrorReporting<T>(source: DataSource, operation: string, fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (error) {
-    const providerError =
-      error instanceof ProviderError
-        ? error
-        : new ProviderError("UNAVAILABLE", "The monitoring provider is currently unavailable.", { cause: error });
-
-    console.error(`[monitoring] ${operation} failed`, error);
-
-    // Log at most once per minute per error code, to keep the activity log readable.
-    const now = Date.now();
-    if (now - (lastErrorLogged.get(providerError.code) ?? 0) > 60_000) {
-      lastErrorLogged.set(providerError.code, now);
-      await logActivity({
-        action: "PROVIDER_ERROR",
-        description: `${operation}: ${providerError.message}`,
-        metadata: { code: providerError.code },
-      });
-    }
-    throw providerError;
+    throw await reportProviderError(source, operation, error);
   }
 }
 
-async function listAll(region: string): Promise<Ec2Instance[]> {
-  const provider = getMonitoringProvider();
-  const key = `${provider.mode}:${region}`;
+function listSource(source: DataSource, region: string): Promise<Ec2Instance[]> {
+  const key = `${source}:${region}`;
   const cached = listCache.get(key);
-  if (cached && Date.now() - cached.at < LIST_CACHE_TTL_MS) return cached.data;
+  if (cached && Date.now() - cached.at < LIST_CACHE_TTL_MS) return cached.promise;
 
-  const data = await withProviderErrorLogging("List instances", () => provider.listInstances(region));
-  listCache.set(key, { at: Date.now(), data });
-  return data;
+  // Store the promise (not the result) so concurrent requests share one AWS call.
+  const promise = withErrorReporting(source, "List instances", () => getProvider(source).listInstances(region));
+  promise.catch(() => {}); // handled by callers; avoids an unhandled-rejection warning for cached failures
+  listCache.set(key, { at: Date.now(), promise });
+  return promise;
+}
+
+interface CombinedList {
+  instances: Ec2Instance[];
+  sources: SourceStatus[];
+}
+
+/**
+ * Instances from every enabled source. If one source fails, the others are still
+ * returned and the failure is described in `sources`. Only when every source
+ * fails is the error thrown (the API then answers with an error status).
+ */
+async function listAllSources(region: string): Promise<CombinedList> {
+  const sources = getEnabledSources();
+  const settled = await Promise.allSettled(sources.map((source) => listSource(source, region)));
+
+  const byKey = new Map<string, Ec2Instance>();
+  const statuses: SourceStatus[] = [];
+  let firstError: ProviderError | undefined;
+
+  settled.forEach((result, index) => {
+    const source = sources[index];
+    if (result.status === "fulfilled") {
+      for (const instance of result.value) {
+        // The key includes the source, so a mock ID can never shadow a real one.
+        byKey.set(`${source}:${instance.instanceId}`, { ...instance, source });
+      }
+      statuses.push({
+        source,
+        ok: true,
+        instanceCount: result.value.filter((i) => i.state !== "terminated").length,
+        error: null,
+      });
+    } else {
+      const error = asProviderError(result.reason);
+      firstError ??= error;
+      statuses.push({ source, ok: false, instanceCount: null, error: { code: error.code, message: error.message } });
+    }
+  });
+
+  if (firstError && statuses.every((s) => !s.ok)) throw firstError;
+  return { instances: [...byKey.values()], sources: statuses };
+}
+
+/** Real AWS instances first, then mock; within a source by name (unnamed last), then ID. */
+function compareInstances(a: Ec2Instance, b: Ec2Instance) {
+  if (a.source !== b.source) return a.source === "AWS" ? -1 : 1;
+  if (a.name && !b.name) return -1;
+  if (!a.name && b.name) return 1;
+  return (a.name ?? "").localeCompare(b.name ?? "") || a.instanceId.localeCompare(b.instanceId);
 }
 
 export async function getSummary(): Promise<InfrastructureSummary> {
   const region = await getActiveRegion();
-  const instances = await listAll(region);
+  const { instances, sources } = await listAllSources(region);
   const visible = instances.filter((i) => i.state !== "terminated");
 
   const count = (state: InstanceState) => instances.filter((i) => i.state === state).length;
@@ -82,7 +147,9 @@ export async function getSummary(): Promise<InfrastructureSummary> {
         i.systemStatus === "impaired" ||
         i.instanceStatus === "impaired",
     )
-    .map(({ instanceId, name, state, systemStatus, instanceStatus }) => ({
+    .sort(compareInstances)
+    .map(({ source, instanceId, name, state, systemStatus, instanceStatus }) => ({
+      source,
       instanceId,
       name,
       state,
@@ -100,6 +167,7 @@ export async function getSummary(): Promise<InfrastructureSummary> {
     impaired: impairedList.length,
     overallStatus,
     attention,
+    sources,
     generatedAt: new Date().toISOString(),
   };
 }
@@ -109,12 +177,17 @@ export interface InstanceQuery {
   pageSize: number;
   search?: string;
   state?: InstanceState | "transitional";
+  source?: DataSource;
 }
 
-export async function searchInstances(query: InstanceQuery): Promise<Paginated<Ec2Instance> & { region: string }> {
+export async function searchInstances(
+  query: InstanceQuery,
+): Promise<Paginated<Ec2Instance> & { region: string; sources: SourceStatus[] }> {
   const region = await getActiveRegion();
-  let items = await listAll(region);
+  const { instances, sources } = await listAllSources(region);
+  let items = instances;
 
+  if (query.source) items = items.filter((i) => i.source === query.source);
   if (query.state === "transitional") items = items.filter((i) => TRANSITIONAL_STATES.includes(i.state));
   else if (query.state) items = items.filter((i) => i.state === query.state);
   if (query.search) {
@@ -124,12 +197,7 @@ export async function searchInstances(query: InstanceQuery): Promise<Paginated<E
     );
   }
 
-  // Stable order: by name (unnamed last), then id.
-  items = [...items].sort((a, b) => {
-    if (a.name && !b.name) return -1;
-    if (!a.name && b.name) return 1;
-    return (a.name ?? "").localeCompare(b.name ?? "") || a.instanceId.localeCompare(b.instanceId);
-  });
+  items = [...items].sort(compareInstances);
 
   const total = items.length;
   const totalPages = Math.max(1, Math.ceil(total / query.pageSize));
@@ -138,6 +206,7 @@ export async function searchInstances(query: InstanceQuery): Promise<Paginated<E
 
   return {
     region,
+    sources,
     items: items.slice(start, start + query.pageSize),
     page,
     pageSize: query.pageSize,
@@ -149,28 +218,30 @@ export async function searchInstances(query: InstanceQuery): Promise<Paginated<E
 /** Lightweight list for pickers (e.g. the Monitoring page instance selector). */
 export async function listInstanceOptions() {
   const region = await getActiveRegion();
-  const items = await listAll(region);
-  return items
+  const { instances, sources } = await listAllSources(region);
+  const items = instances
     .filter((i) => i.state !== "terminated")
-    .sort((a, b) => (a.name ?? "\uffff").localeCompare(b.name ?? "\uffff") || a.instanceId.localeCompare(b.instanceId))
-    .map(({ instanceId, name, state, instanceType }) => ({ instanceId, name, state, instanceType }));
+    .sort(compareInstances)
+    .map(({ source, instanceId, name, state, instanceType }) => ({ source, instanceId, name, state, instanceType }));
+  return { items, sources };
 }
 
-export async function getInstanceDetail(instanceId: string) {
+/** One instance from the source that owns it. null = not found (or that source is disabled). */
+export async function getInstanceDetail(source: DataSource, instanceId: string) {
+  if (!isSourceEnabled(source)) return null;
   const region = await getActiveRegion();
-  const provider = getMonitoringProvider();
-  return withProviderErrorLogging("Get instance", () => provider.getInstance(region, instanceId));
+  return withErrorReporting(source, "Get instance", () => getProvider(source).getInstance(region, instanceId));
 }
 
 export async function getInstanceMetrics(
+  source: DataSource,
   instanceId: string,
   range: TimeRangeKey,
 ): Promise<InstanceMetrics | null> {
-  const region = await getActiveRegion();
-  const provider = getMonitoringProvider();
-  const instance = await withProviderErrorLogging("Get instance", () => provider.getInstance(region, instanceId));
+  const instance = await getInstanceDetail(source, instanceId);
   if (!instance) return null;
-  return withProviderErrorLogging("Get metrics", () => provider.getInstanceMetrics(region, instance, range));
+  const region = await getActiveRegion();
+  return withErrorReporting(source, "Get metrics", () => getProvider(source).getInstanceMetrics(region, instance, range));
 }
 
 /** Drop cached lists, e.g. after the region changes. */

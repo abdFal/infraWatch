@@ -9,13 +9,15 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
+import { SourceBadge, SourceStatusNotice } from "@/components/ui/source-badge";
 import { InstanceStateBadge } from "@/components/ui/status-badge";
 import { useApi } from "@/lib/hooks/use-api";
 import { TIME_RANGE_KEYS, type TimeRangeKey } from "@/lib/time-ranges";
-import type { InstanceState } from "@/lib/types";
+import { sourceSlug, type DataSource, type InstanceState, type SourceStatus } from "@/lib/types";
 import { InstanceMetricsPanel } from "./instance-metrics-panel";
 
 interface InstanceOption {
+  source: DataSource;
   instanceId: string;
   name: string | null;
   state: InstanceState;
@@ -27,17 +29,27 @@ export function MonitoringView() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { data: options, error, isLoading, refetch } = useApi<InstanceOption[]>("/api/instances/options");
+  const { data, error, isLoading, refetch } = useApi<{ items: InstanceOption[]; sources: SourceStatus[] }>("/api/instances/options");
+  const options = data?.items;
 
   const rangeParam = searchParams.get("range");
   const range: TimeRangeKey = TIME_RANGE_KEYS.includes(rangeParam as TimeRangeKey) ? (rangeParam as TimeRangeKey) : defaultTimeRange;
+  // An instance is identified by source + ID (?source=aws&instance=i-...).
   const requested = searchParams.get("instance");
+  const requestedSource = searchParams.get("source");
+  const optionKey = (o: InstanceOption) => `${sourceSlug(o.source)}:${o.instanceId}`;
   const selected =
-    options?.find((o) => o.instanceId === requested) ?? options?.find((o) => o.state === "running") ?? options?.[0];
+    options?.find((o) => o.instanceId === requested && (!requestedSource || sourceSlug(o.source) === requestedSource)) ??
+    options?.find((o) => o.state === "running") ??
+    options?.[0];
 
-  function update(next: { instance?: string; range?: TimeRangeKey }) {
+  function update(next: { key?: string; range?: TimeRangeKey }) {
     const params = new URLSearchParams(searchParams.toString());
-    if (next.instance) params.set("instance", next.instance);
+    if (next.key) {
+      const [source, instance] = next.key.split(":");
+      params.set("source", source);
+      params.set("instance", instance);
+    }
     if (next.range) params.set("range", next.range);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
@@ -45,6 +57,8 @@ export function MonitoringView() {
   return (
     <>
       <PageHeader title="Monitoring" description="CloudWatch metrics for an individual EC2 instance." />
+
+      <SourceStatusNotice sources={data?.sources} className="mb-4" />
 
       <Card className="mb-6 p-4">
         {isLoading ? <Skeleton className="h-9 w-full max-w-lg" /> : null}
@@ -60,18 +74,19 @@ export function MonitoringView() {
             <Select
               id="instance-select"
               className="w-full sm:max-w-lg"
-              value={selected.instanceId}
-              onChange={(e) => update({ instance: e.target.value })}
+              value={optionKey(selected)}
+              onChange={(e) => update({ key: e.target.value })}
             >
               {options.map((o) => (
-                <option key={o.instanceId} value={o.instanceId}>
-                  {o.name ?? "(no name)"} · {o.instanceId} · {o.instanceType} · {o.state}
+                <option key={optionKey(o)} value={optionKey(o)}>
+                  [{o.source}] {o.name ?? "(no name)"} · {o.instanceId} · {o.instanceType} · {o.state}
                 </option>
               ))}
             </Select>
             <div className="flex items-center gap-3">
+              <SourceBadge source={selected.source} />
               <InstanceStateBadge state={selected.state} />
-              <Link href={`/instances/${selected.instanceId}`} className="text-sm font-medium text-sky-700 hover:underline">
+              <Link href={`/instances/${sourceSlug(selected.source)}/${selected.instanceId}`} className="text-sm font-medium text-sky-700 hover:underline">
                 Details
               </Link>
             </div>
@@ -80,7 +95,10 @@ export function MonitoringView() {
       </Card>
 
       {selected ? (
-        <InstanceMetricsPanel key={selected.instanceId} instanceId={selected.instanceId} range={range} onRangeChange={(r) => update({ range: r })} />
+        <InstanceMetricsPanel
+          key={optionKey(selected)}
+          source={selected.source}
+          instanceId={selected.instanceId} range={range} onRangeChange={(r) => update({ range: r })} />
       ) : null}
     </>
   );

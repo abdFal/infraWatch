@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CircleStop, Loader2, PlayCircle, Server, ScrollText } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, CircleStop, Loader2, PlayCircle, Server, ScrollText } from "lucide-react";
 import { ActivityList } from "@/components/activity/activity-list";
 import { useDashboard } from "@/components/layout/dashboard-context";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -9,9 +9,10 @@ import { PageHeader } from "@/components/ui/page-header";
 import { RefreshControl } from "@/components/ui/refresh-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
+import { SourceBadge, SourceStatusNotice } from "@/components/ui/source-badge";
 import { InstanceStateBadge, overallStatusStyles, StatusCheckBadge } from "@/components/ui/status-badge";
 import { useApi } from "@/lib/hooks/use-api";
-import type { ActivityLogEntry, InfrastructureSummary } from "@/lib/types";
+import { sourceSlug, type ActivityLogEntry, type InfrastructureSummary, type SourceStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface OverviewData {
@@ -80,6 +81,48 @@ function StateDistribution({ summary }: { summary: InfrastructureSummary }) {
   );
 }
 
+function DataSourcesCard({ sources, region }: { sources: SourceStatus[]; region: string }) {
+  return (
+    <Card>
+      <CardHeader title="Data sources" description="Where the instances on this dashboard come from" />
+      <ul className="divide-y divide-slate-100">
+        {sources.map((s) => (
+          <li key={s.source} className="flex items-start justify-between gap-3 px-5 py-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <SourceBadge source={s.source} />
+                <span className="text-sm font-medium text-slate-900">
+                  {s.source === "AWS" ? "Your AWS account" : "Generated demo data"}
+                </span>
+              </div>
+              {s.ok ? (
+                <p className="mt-1 text-xs text-slate-500">
+                  {s.instanceCount === 0
+                    ? s.source === "AWS"
+                      ? `Connected. No EC2 instances in ${region}.`
+                      : "No mock instances."
+                    : `${s.instanceCount} instance${s.instanceCount === 1 ? "" : "s"} in ${region}`}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-rose-700">{s.error?.message}</p>
+              )}
+            </div>
+            {s.ok ? (
+              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-emerald-700">
+                <CheckCircle2 className="size-3.5" aria-hidden /> Connected
+              </span>
+            ) : (
+              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-rose-700">
+                <AlertTriangle className="size-3.5" aria-hidden /> Unavailable
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 function OverviewSkeleton() {
   return (
     <div className="space-y-6">
@@ -107,7 +150,7 @@ export function OverviewView() {
     <>
       <PageHeader
         title="Overview"
-        description="Health of the EC2 fleet in the selected region."
+        description="Health of the EC2 fleet in the selected region, across all data sources."
         actions={
           <RefreshControl lastUpdated={lastUpdated} isRefreshing={isRefreshing} onRefresh={refetch} refreshIntervalSec={refreshIntervalSec} />
         }
@@ -132,6 +175,7 @@ function OverviewContent({ data }: { data: OverviewData }) {
 
   return (
     <div className="space-y-6">
+      <SourceStatusNotice sources={summary.sources} />
       <div className={cn("flex items-start gap-3 rounded-xl border px-5 py-4", status.className)}>
         <StatusIcon className={cn("mt-0.5 size-5 shrink-0", summary.overallStatus === "transitioning" && "animate-spin [animation-duration:3s]")} aria-hidden />
         <div>
@@ -150,12 +194,15 @@ function OverviewContent({ data }: { data: OverviewData }) {
         <StatCard label="Pending / transitional" value={summary.transitional} hint="Pending, stopping or shutting down" icon={Loader2} accent="bg-amber-50 text-amber-700" href="/instances?state=transitional" />
       </div>
 
-      <Card>
-        <CardHeader title="Instance states" description="Share of non-terminated instances by state" />
-        <CardBody>
-          {summary.total > 0 ? <StateDistribution summary={summary} /> : <p className="text-sm text-slate-500">No instances in this region.</p>}
-        </CardBody>
-      </Card>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader title="Instance states" description="Share of non-terminated instances by state, all sources" />
+          <CardBody>
+            {summary.total > 0 ? <StateDistribution summary={summary} /> : <p className="text-sm text-slate-500">No instances in this region.</p>}
+          </CardBody>
+        </Card>
+        <DataSourcesCard sources={summary.sources} region={summary.region} />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -165,10 +212,13 @@ function OverviewContent({ data }: { data: OverviewData }) {
           ) : (
             <ul className="divide-y divide-slate-100">
               {summary.attention.map((item) => (
-                <li key={item.instanceId}>
-                  <Link href={`/instances/${item.instanceId}`} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50">
+                <li key={`${item.source}:${item.instanceId}`}>
+                  <Link href={`/instances/${sourceSlug(item.source)}/${item.instanceId}`} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-900">{item.name ?? "(no name)"}</p>
+                      <p className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                        <span className="truncate">{item.name ?? "(no name)"}</span>
+                        <SourceBadge source={item.source} />
+                      </p>
                       <p className="font-mono text-xs text-slate-500">{item.instanceId}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">

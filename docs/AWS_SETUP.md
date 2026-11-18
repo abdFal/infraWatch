@@ -1,7 +1,8 @@
 # AWS integration setup
 
-> **Status:** the AWS provider (`src/lib/providers/aws-provider.ts`) is **Phase 2** and not built yet.
-> You can already create the IAM policy and the AWS CLI profile below. Switching to `MONITORING_PROVIDER=AWS` currently returns a clear "AWS mode is not available yet" error. It never falls back to mock data.
+> **Status:** implemented (Phase 2). The quickest path, with every command in order, is **[README §6](../README.md#6-connect-your-aws-account-phase-2)**. This page is the reference: what is called, why, the alternatives (SSO, EC2 role) and the CloudWatch Agent.
+
+Code: `src/lib/aws/client.ts` (SDK clients, timeouts), `ec2.ts` (instances), `cloudwatch.ts` (metrics), `errors.ts` (safe error messages), `src/lib/providers/aws-provider.ts` (the provider) and `src/lib/monitoring-service.ts` (combines AWS with mock data).
 
 ## 1. What the dashboard calls
 
@@ -15,6 +16,13 @@ The app is **read-only**. It calls exactly four AWS APIs:
 | `cloudwatch:ListMetrics` | Finding CloudWatch Agent disk metrics, whose dimensions (`path`, `device`, `fstype`) vary per instance |
 
 Users can't trigger any other AWS call. The browser only talks to fixed API routes in this app, inputs are validated with Zod, and the region must come from a fixed allow-list.
+
+How each call is used:
+
+- **DescribeInstances** pages through every instance with `NextToken` (1,000 per page). The SDK object is mapped to the dashboard's own shape (`src/lib/types.ts`), and nothing else leaves the server.
+- **DescribeInstanceStatus** runs with `IncludeAllInstances: true`. Without it, AWS only returns running instances.
+- **GetMetricData** fetches all seven series for one instance in a single request. `Sum` metrics (network, disk ops) are divided by the period to show per-second rates.
+- **ListMetrics** finds the exact dimensions the CloudWatch Agent used (`InstanceId`, and often `ImageId`, `InstanceType`, `path`, `device`, `fstype`). GetMetricData only matches an exact dimension set. If nothing is found, the chart says "CloudWatch Agent required".
 
 ## 2. Least-privilege IAM policy
 
@@ -79,49 +87,63 @@ aws --version
 If your AWS account uses IAM Identity Center, create a permission set with the `InfraWatchReadOnly` policy, then run:
 
 ```bash
-aws configure sso --profile dashboard-readonly
+aws configure sso --profile infrawatch-readonly
 ```
 
 ```bash
-aws sso login --profile dashboard-readonly
+aws sso login --profile infrawatch-readonly
 ```
 
 SSO credentials are short-lived. Run `aws sso login` again when they expire.
 
 ### Option B: a dedicated IAM user with access keys
 
-1. **IAM → Users → Create user**, for example `infrawatch-local`. Don't give it console access.
+With the AWS CLI, follow [README §6.3–6.4](../README.md#63-create-a-dedicated-iam-user-for-the-dashboard). Or in the AWS Console:
+
+1. **IAM → Users → Create user** named `infrawatch-readonly`. Don't give it console access.
 2. Attach the `InfraWatchReadOnly` policy.
 3. **Security credentials → Create access key → Local code**.
 4. Save the keys into a named profile. They are written to `~/.aws/credentials`, never to the project:
 
 ```bash
-aws configure --profile dashboard-readonly
+aws configure --profile infrawatch-readonly
 ```
+
+Rotate the key from time to time (create a new one, update the profile, delete the old one). Never put the keys in `.env`.
+
+### Option C: an existing profile
+
+Any profile works, including an `aws login` session. But an admin profile gives the dashboard far more access than it needs. Prefer a profile limited to `InfraWatchReadOnly`.
 
 ### Verify the profile can read (and only read)
 
 ```bash
-aws ec2 describe-instances --profile dashboard-readonly --region us-east-1 --query "Reservations[].Instances[].InstanceId"
+aws ec2 describe-instances --profile infrawatch-readonly --region ap-southeast-2 --query "Reservations[].Instances[].InstanceId"
 ```
 
 ```bash
-aws sts get-caller-identity --profile dashboard-readonly
+aws sts get-caller-identity --profile infrawatch-readonly
 ```
 
-## 4. Switch from MOCK to AWS mode (after Phase 2)
+## 4. Choose the data sources
 
 Edit `.env` in the project folder:
 
 ```bash
-MONITORING_PROVIDER=AWS
-AWS_PROFILE=dashboard-readonly
-AWS_REGION=us-east-1
+MONITORING_PROVIDER=HYBRID        # or AWS, or MOCK
+AWS_PROFILE=infrawatch-readonly
+AWS_REGION=ap-southeast-2
 ```
 
-Restart the dev server (`Ctrl+C`, then `npm run dev`). The top bar badge changes from **Mock** to **Live AWS**.
+| Mode | Top bar | Behaviour when AWS fails |
+| --- | --- | --- |
+| `HYBRID` | **AWS + Mock** | Mock instances stay visible. A red "AWS data unavailable" banner and the Overview **Data sources** card show the reason. |
+| `AWS` | **Live AWS** | Pages show the error (HTTP 503). Never mock data. |
+| `MOCK` | **Mock data** | No AWS calls at all. |
 
-To go back, set `MONITORING_PROVIDER=MOCK` and restart.
+Restart the dev server (`Ctrl+C`, then `npm run dev`), then choose the region in **Settings**.
+
+Each instance is identified by **source + instance ID**. Detail URLs include the source (`/instances/aws/i-…` or `/instances/mock/i-…`), and API calls go only to the provider that owns that instance.
 
 ## 5. Credentials on EC2 (production)
 
@@ -183,6 +205,8 @@ Metrics appear in CloudWatch after a few minutes. Reference: [Installing the Clo
 
 ## 7. Notes on standard EC2 metrics
 
-- **Basic monitoring** (free) publishes every 5 minutes. **Detailed monitoring** publishes every minute. With basic monitoring the "Last 1 hour" view has about 12 points, not 60.
+- **Basic monitoring** (free) publishes every 5 minutes. **Detailed monitoring** publishes every minute. For basic-monitoring instances the dashboard uses at least a 5-minute period, so "Last 1 hour" has 12 points, not 60. Requesting 1-minute periods there would return 5-minute sums, and dividing those by 60 would overstate network and disk rates five times.
+- New instances need 5–10 minutes before their first datapoints appear.
+- Nothing is ever interpolated or invented. Gaps in CloudWatch stay gaps, and an empty result is shown as "No data available".
 - **DiskReadOps / DiskWriteOps** in `AWS/EC2` only cover **instance store** volumes on Nitro instances (most current types, such as t3, m6i, c6i). EBS-only Nitro instances show "No data available" here, which is correct. EBS activity is in the `AWS/EBS` namespace.
 - Stopped instances publish no metrics, so their charts show "No data available".

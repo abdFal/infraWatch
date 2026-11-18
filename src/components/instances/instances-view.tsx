@@ -13,9 +13,10 @@ import { RefreshControl } from "@/components/ui/refresh-control";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
+import { SourceBadge, SourceStatusNotice } from "@/components/ui/source-badge";
 import { InstanceStateBadge } from "@/components/ui/status-badge";
 import { useApi } from "@/lib/hooks/use-api";
-import type { Ec2Instance, Paginated } from "@/lib/types";
+import { sourceSlug, type Ec2Instance, type MonitoringMode, type Paginated, type SourceStatus } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
 
 const STATE_OPTIONS = [
@@ -29,10 +30,16 @@ const STATE_OPTIONS = [
   { value: "terminated", label: "Terminated" },
 ];
 
+const SOURCE_OPTIONS = [
+  { value: "", label: "All sources" },
+  { value: "aws", label: "AWS (real)" },
+  { value: "mock", label: "Mock (demo)" },
+];
+
 const PAGE_SIZE = 10;
 
 export function InstancesView() {
-  const { refreshIntervalSec } = useDashboard();
+  const { refreshIntervalSec, providerMode } = useDashboard();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -40,6 +47,7 @@ export function InstancesView() {
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
   const state = searchParams.get("state") ?? "";
   const search = searchParams.get("search") ?? "";
+  const source = searchParams.get("source") ?? "";
   const [searchInput, setSearchInput] = useState(search);
 
   function updateParams(next: Record<string, string | number | undefined>) {
@@ -63,12 +71,16 @@ export function InstancesView() {
   const apiParams = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
   if (state) apiParams.set("state", state);
   if (search) apiParams.set("search", search);
-  const { data, error, isLoading, isRefreshing, lastUpdated, refetch } = useApi<Paginated<Ec2Instance> & { region: string }>(
+  if (source) apiParams.set("source", source);
+  const { data, error, isLoading, isRefreshing, lastUpdated, refetch } = useApi<
+    Paginated<Ec2Instance> & { region: string; sources: SourceStatus[] }
+  >(
     `/api/instances?${apiParams.toString()}`,
     { refreshIntervalSec },
   );
 
-  const hasFilters = Boolean(state || search);
+  const hasFilters = Boolean(state || search || source);
+  const showSourceFilter = (providerMode as MonitoringMode) === "HYBRID";
 
   return (
     <>
@@ -77,6 +89,8 @@ export function InstancesView() {
         description={data ? `${data.total} instance${data.total === 1 ? "" : "s"} in ${data.region}${hasFilters ? " matching filters" : ""}` : "Instances in the selected region"}
         actions={<RefreshControl lastUpdated={lastUpdated} isRefreshing={isRefreshing} onRefresh={refetch} refreshIntervalSec={refreshIntervalSec} />}
       />
+
+      <SourceStatusNotice sources={data?.sources} className="mb-4" />
 
       <Card>
         <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center">
@@ -104,13 +118,27 @@ export function InstancesView() {
               </option>
             ))}
           </Select>
+          {showSourceFilter ? (
+            <Select
+              className="sm:w-44"
+              value={source}
+              onChange={(e) => updateParams({ source: e.target.value, page: 1 })}
+              aria-label="Filter by data source"
+            >
+              {SOURCE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          ) : null}
           {hasFilters ? (
             <Button
               variant="ghost"
               size="md"
               onClick={() => {
                 setSearchInput("");
-                updateParams({ search: undefined, state: undefined, page: 1 });
+                updateParams({ search: undefined, state: undefined, source: undefined, page: 1 });
               }}
             >
               <X className="size-4" /> Clear
@@ -124,7 +152,7 @@ export function InstancesView() {
           <EmptyState
             icon={Server}
             title={hasFilters ? "No instances match your filters" : "No instances in this region"}
-            description={hasFilters ? "Try a different search term or state filter." : "Change the AWS region in Settings to see instances elsewhere."}
+            description={hasFilters ? "Try a different search term, state or source filter." : "Change the AWS region in Settings to see instances elsewhere."}
           />
         ) : null}
         {data && data.items.length > 0 ? (
@@ -144,11 +172,14 @@ export function InstancesView() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {data.items.map((instance) => (
-                    <tr key={instance.instanceId} className="hover:bg-slate-50">
+                    <tr key={`${instance.source}:${instance.instanceId}`} className="hover:bg-slate-50">
                       <td className="px-5 py-3">
-                        <Link href={`/instances/${instance.instanceId}`} className="group block">
-                          <span className="font-medium text-slate-900 group-hover:text-sky-700 group-hover:underline">
-                            {instance.name ?? <span className="italic text-slate-500">(no name)</span>}
+                        <Link href={`/instances/${sourceSlug(instance.source)}/${instance.instanceId}`} className="group block">
+                          <span className="flex items-center gap-2">
+                            <span className="font-medium text-slate-900 group-hover:text-sky-700 group-hover:underline">
+                              {instance.name ?? <span className="italic text-slate-500">(no name)</span>}
+                            </span>
+                            <SourceBadge source={instance.source} />
                           </span>
                           <span className="block font-mono text-xs text-slate-500">{instance.instanceId}</span>
                         </Link>

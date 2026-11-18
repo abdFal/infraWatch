@@ -7,33 +7,40 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/states";
 import { useApi } from "@/lib/hooks/use-api";
 import { getTimeRange, type TimeRangeKey } from "@/lib/time-ranges";
-import type { InstanceMetrics } from "@/lib/types";
+import { sourceSlug, type DataSource, type InstanceMetrics } from "@/lib/types";
 import { MetricChartCard } from "./metric-chart";
 import { TimeRangeSelect } from "./time-range-select";
 
 /** All CloudWatch metrics for one instance, with a period selector. */
 export function InstanceMetricsPanel({
+  source,
   instanceId,
   range,
   onRangeChange,
 }: {
+  source: DataSource;
   instanceId: string;
   range: TimeRangeKey;
   onRangeChange: (range: TimeRangeKey) => void;
 }) {
   const { refreshIntervalSec } = useDashboard();
   const { data, error, isLoading, isRefreshing, lastUpdated, refetch } = useApi<InstanceMetrics>(
-    `/api/instances/${instanceId}/metrics?range=${range}`,
+    `/api/instances/${sourceSlug(source)}/${instanceId}/metrics?range=${range}`,
     { refreshIntervalSec },
   );
   const rangeInfo = getTimeRange(range);
-  const periodLabel = rangeInfo.periodSec >= 60 ? `${rangeInfo.periodSec / 60}-minute` : `${rangeInfo.periodSec}-second`;
+  // AWS instances with basic monitoring use at least 5-minute periods, so prefer what the server used.
+  const periodSec = data?.range === range ? data.periodSec : rangeInfo.periodSec;
+  const periodLabel = periodSec >= 60 ? `${periodSec / 60}-minute` : `${periodSec}-second`;
 
   return (
     <section aria-label="CloudWatch metrics">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-slate-900">CloudWatch metrics</h2>
+          <h2 className="text-base font-semibold text-slate-900">
+            CloudWatch metrics
+            {source === "MOCK" ? <span className="ml-2 text-xs font-normal text-violet-700">(generated demo values)</span> : null}
+          </h2>
           <p className="text-xs text-slate-500">
             {rangeInfo.label} · {periodLabel} period · rates are per second
           </p>

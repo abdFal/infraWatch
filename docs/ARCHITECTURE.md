@@ -15,9 +15,36 @@ Short explanations of the main design decisions.
 
 The AWS SDK runs only in server code. Every server module that touches secrets imports `server-only`, so importing it from a client component fails the build. The API exposes fixed, validated operations (list, detail, metrics), not a generic AWS passthrough, so users can't make arbitrary AWS calls.
 
-## Provider selection
+## Data sources: MOCK, AWS and HYBRID
 
-`getMonitoringProvider()` reads `MONITORING_PROVIDER` once. There is deliberately **no automatic fallback** from AWS to MOCK: a misconfigured production server must look broken, not quietly show fake data. The top bar always shows which provider is active.
+There are two providers: `MockMonitoringProvider` (generated) and `AwsMonitoringProvider` (AWS SDK v3). `MONITORING_PROVIDER` decides which are enabled (`src/lib/providers/index.ts`):
+
+| Mode | Sources |
+| --- | --- |
+| `HYBRID` | AWS + MOCK |
+| `MOCK` | MOCK |
+| `AWS` | AWS |
+
+`monitoring-service.ts` is the single place that combines them:
+
+1. It asks every enabled source for its instances **in parallel** (`Promise.allSettled`), so one slow or failing source doesn't block the other.
+2. It merges them in a map keyed by `source:instanceId`. Every instance carries `source: "AWS" | "MOCK"`, so IDs can't collide or be duplicated.
+3. It returns a `sources` array with each source's status (`ok`, instance count, or a safe error message). The UI shows it as the **Data sources** card and as a red "AWS data unavailable" banner.
+4. Detail and metrics requests include the source in the URL (`/api/instances/aws/i-…/metrics`) and go **only** to that provider. Real instances always get real CloudWatch data, and mock instances always get mock metrics.
+
+**Failure rules**
+
+- If some sources fail, the others are still shown **and** the failure is displayed. That is graceful, not silent.
+- If every enabled source fails, the API returns an error (503/504/429). In `AWS` mode that means an error page, never mock data.
+- Mock data never replaces AWS data. It is only ever shown as itself, with a MOCK badge.
+
+**Caching:** each source+region list is cached for 15 seconds. The cache holds the *promise*, so concurrent requests share one AWS call. Failures are cached for the same 15 seconds, so a broken AWS setup isn't retried on every page load.
+
+## AWS credentials and errors
+
+- No credentials are passed in code. The SDK's **default credential provider chain** resolves them: `AWS_PROFILE` → `~/.aws` on a Mac, or the EC2 instance role (IMDSv2) in production.
+- Each call has an overall deadline (`AWS_API_TIMEOUT_MS`, using an `AbortSignal`) and at most one retry.
+- `src/lib/aws/errors.ts` maps SDK errors to `NOT_CONFIGURED`, `INVALID_CREDENTIALS`, `ACCESS_DENIED`, `THROTTLED`, `TIMEOUT` or `UNAVAILABLE`, each with a fixed, user-safe message. The raw AWS message, which can contain account IDs and ARNs, is printed only in the server log.
 
 ## Mock data that behaves like AWS
 

@@ -11,7 +11,7 @@ Internet ──► EC2 security group (80/443) ──► Nginx :80/:443 ──�
 - PostgreSQL runs on the same instance and listens only on localhost.
 - AWS access uses an **IAM role** attached to the instance, never access keys.
 
-> Do this **after** the app works locally. Use real AWS mode only once Phase 2 is complete. Until then, deploy with `MONITORING_PROVIDER=MOCK` to practise the deployment itself.
+> Do this **after** the app works locally with your AWS account (README §6). On the server, `MONITORING_PROVIDER` works the same way (`HYBRID`, `AWS` or `MOCK`), but credentials come from the instance's IAM role instead of a profile.
 
 Commands marked **(Mac)** run in Terminal on your MacBook. Commands marked **(server)** run on the EC2 instance over SSH.
 
@@ -170,7 +170,7 @@ AUTH_SECRET="<output of: openssl rand -base64 32>"
 AUTH_TRUST_HOST=true
 SEED_ADMIN_EMAIL="you@yourcompany.com"
 SEED_ADMIN_PASSWORD="<a long unique password>"
-MONITORING_PROVIDER=MOCK        # AWS after Phase 2
+MONITORING_PROVIDER=AWS         # or HYBRID / MOCK
 AWS_REGION=us-east-1
 # AWS_PROFILE must stay UNSET on EC2: the instance role is used.
 ```

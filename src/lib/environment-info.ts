@@ -15,10 +15,14 @@ export function getEnvironmentInfo() {
     providerMode: env.MONITORING_PROVIDER,
     defaultRegion: env.AWS_REGION,
     awsApiTimeoutMs: env.AWS_API_TIMEOUT_MS,
+    // Only describes WHERE credentials come from. The profile name and the
+    // credentials themselves are never sent to the browser.
     credentialSource:
-      env.MONITORING_PROVIDER === "AWS"
-        ? "AWS SDK default credential provider chain (IAM role on EC2, or AWS CLI profile locally)"
-        : "Not used (MOCK mode)",
+      env.MONITORING_PROVIDER === "MOCK"
+        ? "Not used (MOCK mode)"
+        : env.AWS_PROFILE
+          ? "AWS CLI named profile (AWS_PROFILE), via the AWS SDK default credential provider chain"
+          : "AWS SDK default credential provider chain (IAM role on EC2)",
   };
 }
 

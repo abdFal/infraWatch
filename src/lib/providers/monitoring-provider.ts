@@ -1,18 +1,17 @@
-import type { Ec2Instance, InstanceMetrics } from "@/lib/types";
+import type { DataSource, Ec2Instance, InstanceMetrics } from "@/lib/types";
 import type { TimeRangeKey } from "@/lib/time-ranges";
-
-export type ProviderMode = "MOCK" | "AWS";
 
 /**
  * The contract every monitoring data source implements.
  *
- * UI code and API routes depend only on this interface, so switching from the
- * mock provider to the real AWS provider is an environment-variable change,
- * not a rewrite. Every method is read-only by design: there is deliberately no
- * start/stop/reboot/terminate here.
+ * There are two implementations: MockMonitoringProvider (generated demo data)
+ * and AwsMonitoringProvider (your real account through AWS SDK v3).
+ * monitoring-service.ts combines them, so UI code and API routes never talk to
+ * a provider directly. Every method is read-only by design: there is
+ * deliberately no start/stop/reboot/terminate here.
  */
 export interface MonitoringProvider {
-  readonly mode: ProviderMode;
+  readonly source: DataSource;
   listInstances(region: string): Promise<Ec2Instance[]>;
   getInstance(region: string, instanceId: string): Promise<Ec2Instance | null>;
   getInstanceMetrics(
@@ -24,6 +23,7 @@ export interface MonitoringProvider {
 
 export type ProviderErrorCode =
   | "NOT_CONFIGURED"
+  | "INVALID_CREDENTIALS"
   | "ACCESS_DENIED"
   | "THROTTLED"
   | "TIMEOUT"
@@ -50,6 +50,7 @@ export class ProviderError extends Error {
       case "TIMEOUT":
         return 504;
       case "NOT_CONFIGURED":
+      case "INVALID_CREDENTIALS":
       case "ACCESS_DENIED":
       case "UNAVAILABLE":
       default:

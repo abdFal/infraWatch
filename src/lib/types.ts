@@ -17,10 +17,39 @@ export type InstanceState = (typeof INSTANCE_STATES)[number];
 
 export const TRANSITIONAL_STATES: InstanceState[] = ["pending", "stopping", "shutting-down"];
 
+/**
+ * Where an instance's data comes from. Every instance carries its source, and
+ * (source, instanceId) is the unique key: the same ID can never be confused
+ * between generated demo data and your real AWS account.
+ */
+export const DATA_SOURCES = ["AWS", "MOCK"] as const;
+export type DataSource = (typeof DATA_SOURCES)[number];
+
+/** Lowercase form used in URLs: /instances/aws/i-0abc... */
+export type DataSourceSlug = Lowercase<DataSource>;
+export const DATA_SOURCE_SLUGS = ["aws", "mock"] as const satisfies readonly DataSourceSlug[];
+
+export function sourceSlug(source: DataSource): DataSourceSlug {
+  return source.toLowerCase() as DataSourceSlug;
+}
+
+/** Which sources the server combines, from MONITORING_PROVIDER. */
+export type MonitoringMode = "HYBRID" | "MOCK" | "AWS";
+
+/** Result of asking one source for its instances. Shown in the UI so failures are never silent. */
+export interface SourceStatus {
+  source: DataSource;
+  ok: boolean;
+  /** Non-terminated instances returned by this source, or null when it failed. */
+  instanceCount: number | null;
+  error: { code: string; message: string } | null;
+}
+
 /** EC2 status check result. "not-applicable" when the instance isn't running. */
 export type StatusCheck = "ok" | "impaired" | "initializing" | "insufficient-data" | "not-applicable";
 
 export interface Ec2Instance {
+  source: DataSource;
   instanceId: string;
   name: string | null;
   instanceType: string;
@@ -53,7 +82,8 @@ export interface InfrastructureSummary {
   terminated: number;
   impaired: number;
   overallStatus: OverallStatus;
-  attention: Pick<Ec2Instance, "instanceId" | "name" | "state" | "systemStatus" | "instanceStatus">[];
+  attention: Pick<Ec2Instance, "source" | "instanceId" | "name" | "state" | "systemStatus" | "instanceStatus">[];
+  sources: SourceStatus[];
   generatedAt: string;
 }
 
@@ -93,8 +123,10 @@ export interface MetricSeries {
 }
 
 export interface InstanceMetrics {
+  source: DataSource;
   instanceId: string;
   range: TimeRangeKey;
+  /** Actual period used. AWS instances with basic monitoring never go below 300s. */
   periodSec: number;
   start: string;
   end: string;

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { AWS_REGION_CODES } from "@/lib/aws/regions";
 import { REFRESH_INTERVAL_VALUES, TIME_RANGE_KEYS } from "@/lib/time-ranges";
-import { INSTANCE_STATES } from "@/lib/types";
+import { DATA_SOURCE_SLUGS, INSTANCE_STATES, type DataSource } from "@/lib/types";
 
 /** Input validation for every API route and form. */
 
@@ -12,6 +12,11 @@ export const loginSchema = z.object({
 
 // EC2 instance IDs: "i-" followed by 8 or 17 hex characters.
 export const instanceIdSchema = z.string().regex(/^i-[0-9a-f]{8}([0-9a-f]{9})?$/, "Invalid instance ID");
+
+// Data source as it appears in URLs ("aws" | "mock"), converted to "AWS" | "MOCK".
+export const sourceSlugSchema = z
+  .enum(DATA_SOURCE_SLUGS, "Unknown data source")
+  .transform((v) => v.toUpperCase() as DataSource);
 
 export const timeRangeSchema = z.enum(TIME_RANGE_KEYS);
 
@@ -27,6 +32,7 @@ export const instanceListQuerySchema = z.object({
     .transform((v) => (v ? v : undefined)),
   // A specific EC2 state, or "transitional" (pending + stopping + shutting-down).
   state: z.enum([...INSTANCE_STATES, "transitional"]).optional(),
+  source: sourceSlugSchema.optional(),
 });
 
 export const metricsQuerySchema = z.object({

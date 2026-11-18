@@ -22,7 +22,7 @@ interface SettingsData {
     appVersion: string;
     nodeEnv: string;
     nodeVersion: string;
-    providerMode: "MOCK" | "AWS";
+    providerMode: "HYBRID" | "MOCK" | "AWS";
     defaultRegion: string;
     awsApiTimeoutMs: number;
     credentialSource: string;
@@ -189,7 +189,14 @@ function PreferencesCard({ data, onSaved }: { data: SettingsData; onSaved: () =>
 function EnvironmentCard({ data }: { data: SettingsData }) {
   const env = data.environment;
   const rows: [string, React.ReactNode][] = [
-    ["Data provider", env.providerMode === "MOCK" ? "MOCK (generated demo data)" : "AWS (live EC2 + CloudWatch)"],
+    [
+      "Data sources (MONITORING_PROVIDER)",
+      env.providerMode === "HYBRID"
+        ? "HYBRID: real AWS (EC2 + CloudWatch) and generated mock data, side by side"
+        : env.providerMode === "MOCK"
+          ? "MOCK: generated demo data only"
+          : "AWS: real EC2 + CloudWatch data only",
+    ],
     ["Environment", env.nodeEnv],
     ["Application version", env.appVersion],
     ["Node.js", env.nodeVersion],

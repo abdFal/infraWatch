@@ -1,6 +1,6 @@
 "use client";
 
-import { FlaskConical, Globe, LogOut, Menu } from "lucide-react";
+import { Cloud, FlaskConical, Globe, Layers, LogOut, Menu } from "lucide-react";
 import { logoutAction } from "@/app/actions";
 import { regionName } from "@/lib/aws/regions";
 import { useDashboard } from "./dashboard-context";
@@ -42,8 +42,20 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
             <FlaskConical className="size-3.5" />
             Mock<span className="hidden sm:inline"> data</span>
           </span>
+        ) : providerMode === "HYBRID" ? (
+          <span
+            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-medium text-sky-800 sm:px-2.5"
+            title="MONITORING_PROVIDER=HYBRID — real AWS instances and generated mock instances are shown together. Each instance has an AWS or MOCK badge."
+          >
+            <Layers className="size-3.5" />
+            AWS + Mock
+          </span>
         ) : (
-          <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+          <span
+            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 sm:px-2.5"
+            title="MONITORING_PROVIDER=AWS — only real data from your AWS account."
+          >
+            <Cloud className="size-3.5" />
             Live AWS
           </span>
         )}

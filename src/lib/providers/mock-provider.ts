@@ -73,7 +73,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 // Fleet generation
 // ---------------------------------------------------------------------------
 
-interface MockInstance extends Ec2Instance {
+interface MockInstance extends Omit<Ec2Instance, "source"> {
   /** Whether the CloudWatch Agent publishes memory/disk metrics. */
   hasAgent: boolean;
   /** Typical CPU load (0-100) the metric generator centres on. */
@@ -186,11 +186,12 @@ function getFleet(region: string) {
 }
 
 function toPublic(instance: MockInstance): Ec2Instance {
-  // Strip mock-only fields so the API shape matches the AWS provider exactly.
+  // Strip mock-only fields so the API shape matches the AWS provider exactly,
+  // and label every instance as generated demo data.
   const { hasAgent: _hasAgent, cpuBaseline: _cpuBaseline, ...rest } = instance;
   void _hasAgent;
   void _cpuBaseline;
-  return rest;
+  return { source: "MOCK", ...rest };
 }
 
 // ---------------------------------------------------------------------------
@@ -273,7 +274,7 @@ function buildSeries(
 // ---------------------------------------------------------------------------
 
 export class MockMonitoringProvider implements MonitoringProvider {
-  readonly mode = "MOCK" as const;
+  readonly source = "MOCK" as const;
 
   /** Small artificial latency so loading states are visible during development. */
   private async latency() {
@@ -322,6 +323,7 @@ export class MockMonitoringProvider implements MonitoringProvider {
     );
 
     return {
+      source: this.source,
       instanceId: instance.instanceId,
       range: rangeKey,
       periodSec: range.periodSec,

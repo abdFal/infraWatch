@@ -2,11 +2,12 @@
 
 import { createContext, use } from "react";
 import type { TimeRangeKey } from "@/lib/time-ranges";
+import type { MonitoringMode } from "@/lib/types";
 
 export interface DashboardContextValue {
   user: { name: string; email: string; role: "ADMIN" | "VIEWER" };
   region: string;
-  providerMode: "MOCK" | "AWS";
+  providerMode: MonitoringMode;
   refreshIntervalSec: number;
   defaultTimeRange: TimeRangeKey;
 }
