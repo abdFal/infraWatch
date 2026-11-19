@@ -9,7 +9,7 @@ export function DashboardShell({ value, children }: { value: DashboardContextVal
   const [navOpen, setNavOpen] = useState(false);
   return (
     <DashboardProvider value={value}>
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-navy-50 dark:bg-navy-950">
         <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
         <div className="lg:pl-64">
           <Topbar onMenuClick={() => setNavOpen(true)} />

@@ -39,13 +39,13 @@ function StatCard({
     <Link href={href} className="group">
       <Card className="h-full p-4 transition-shadow group-hover:shadow-md sm:p-5">
         <div className="flex items-start justify-between">
-          <p className="text-sm font-medium text-slate-500">{label}</p>
+          <p className="text-sm font-medium text-navy-500 dark:text-navy-400">{label}</p>
           <span className={cn("hidden rounded-lg p-2 sm:block", accent)}>
             <Icon className="size-4" aria-hidden />
           </span>
         </div>
-        <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-slate-900">{value}</p>
-        <p className="mt-1 text-xs text-slate-500">{hint}</p>
+        <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-navy-900 dark:text-navy-100">{value}</p>
+        <p className="mt-1 text-xs text-navy-500 dark:text-navy-400">{hint}</p>
       </Card>
     </Link>
   );
@@ -55,7 +55,7 @@ function StateDistribution({ summary }: { summary: InfrastructureSummary }) {
   const segments = [
     { label: "Running", value: summary.running, className: "bg-emerald-500" },
     { label: "Transitional", value: summary.transitional, className: "bg-amber-400" },
-    { label: "Stopped", value: summary.stopped, className: "bg-slate-400" },
+    { label: "Stopped", value: summary.stopped, className: "bg-navy-400 dark:bg-navy-500" },
   ].filter((s) => s.value > 0);
   const total = segments.reduce((sum, s) => sum + s.value, 0);
   if (total === 0) return null;
@@ -67,13 +67,13 @@ function StateDistribution({ summary }: { summary: InfrastructureSummary }) {
           <div key={s.label} className={cn("h-full first:rounded-l-full last:rounded-r-full", s.className)} style={{ width: `${(s.value / total) * 100}%` }} />
         ))}
       </div>
-      <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-600">
+      <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-navy-600 dark:text-navy-400">
         {segments.map((s) => (
           <li key={s.label} className="flex items-center gap-1.5">
             <span className={cn("size-2 rounded-full", s.className)} aria-hidden />
             {s.label}
-            <span className="font-medium tabular-nums text-slate-900">{s.value}</span>
-            <span className="text-slate-400">({Math.round((s.value / total) * 100)}%)</span>
+            <span className="font-medium tabular-nums text-navy-900 dark:text-navy-100">{s.value}</span>
+            <span className="text-navy-400 dark:text-navy-500">({Math.round((s.value / total) * 100)}%)</span>
           </li>
         ))}
       </ul>
@@ -85,18 +85,18 @@ function DataSourcesCard({ sources, region }: { sources: SourceStatus[]; region:
   return (
     <Card>
       <CardHeader title="Data sources" description="Where the instances on this dashboard come from" />
-      <ul className="divide-y divide-slate-100">
+      <ul className="divide-y divide-navy-100 dark:divide-navy-800">
         {sources.map((s) => (
           <li key={s.source} className="flex items-start justify-between gap-3 px-5 py-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <SourceBadge source={s.source} />
-                <span className="text-sm font-medium text-slate-900">
+                <span className="text-sm font-medium text-navy-900 dark:text-navy-100">
                   {s.source === "AWS" ? "Your AWS account" : "Generated demo data"}
                 </span>
               </div>
               {s.ok ? (
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-navy-500 dark:text-navy-400">
                   {s.instanceCount === 0
                     ? s.source === "AWS"
                       ? `Connected. No EC2 instances in ${region}.`
@@ -104,15 +104,15 @@ function DataSourcesCard({ sources, region }: { sources: SourceStatus[]; region:
                     : `${s.instanceCount} instance${s.instanceCount === 1 ? "" : "s"} in ${region}`}
                 </p>
               ) : (
-                <p className="mt-1 text-xs text-rose-700">{s.error?.message}</p>
+                <p className="mt-1 text-xs text-rose-700 dark:text-rose-300">{s.error?.message}</p>
               )}
             </div>
             {s.ok ? (
-              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-emerald-700">
+              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
                 <CheckCircle2 className="size-3.5" aria-hidden /> Connected
               </span>
             ) : (
-              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-rose-700">
+              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-rose-700 dark:text-rose-300">
                 <AlertTriangle className="size-3.5" aria-hidden /> Unavailable
               </span>
             )}
@@ -188,17 +188,17 @@ function OverviewContent({ data }: { data: OverviewData }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <StatCard label="Total instances" value={summary.total} hint={`Excludes ${summary.terminated} terminated`} icon={Server} accent="bg-slate-100 text-slate-600" href="/instances" />
-        <StatCard label="Running" value={summary.running} hint="Serving workloads" icon={PlayCircle} accent="bg-emerald-50 text-emerald-600" href="/instances?state=running" />
-        <StatCard label="Stopped" value={summary.stopped} hint="Not billed for compute" icon={CircleStop} accent="bg-slate-100 text-slate-600" href="/instances?state=stopped" />
-        <StatCard label="Pending / transitional" value={summary.transitional} hint="Pending, stopping or shutting down" icon={Loader2} accent="bg-amber-50 text-amber-700" href="/instances?state=transitional" />
+        <StatCard label="Total instances" value={summary.total} hint={`Excludes ${summary.terminated} terminated`} icon={Server} accent="bg-navy-100 dark:bg-navy-800 text-navy-600 dark:text-navy-400" href="/instances" />
+        <StatCard label="Running" value={summary.running} hint="Serving workloads" icon={PlayCircle} accent="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" href="/instances?state=running" />
+        <StatCard label="Stopped" value={summary.stopped} hint="Not billed for compute" icon={CircleStop} accent="bg-navy-100 dark:bg-navy-800 text-navy-600 dark:text-navy-400" href="/instances?state=stopped" />
+        <StatCard label="Pending / transitional" value={summary.transitional} hint="Pending, stopping or shutting down" icon={Loader2} accent="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300" href="/instances?state=transitional" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader title="Instance states" description="Share of non-terminated instances by state, all sources" />
           <CardBody>
-            {summary.total > 0 ? <StateDistribution summary={summary} /> : <p className="text-sm text-slate-500">No instances in this region.</p>}
+            {summary.total > 0 ? <StateDistribution summary={summary} /> : <p className="text-sm text-navy-500 dark:text-navy-400">No instances in this region.</p>}
           </CardBody>
         </Card>
         <DataSourcesCard sources={summary.sources} region={summary.region} />
@@ -210,16 +210,16 @@ function OverviewContent({ data }: { data: OverviewData }) {
           {summary.attention.length === 0 ? (
             <EmptyState title="Nothing needs attention" description="All instances are in a steady state and passing status checks." />
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-navy-100 dark:divide-navy-800">
               {summary.attention.map((item) => (
                 <li key={`${item.source}:${item.instanceId}`}>
-                  <Link href={`/instances/${sourceSlug(item.source)}/${item.instanceId}`} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50">
+                  <Link href={`/instances/${sourceSlug(item.source)}/${item.instanceId}`} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-navy-50 dark:hover:bg-navy-800/50">
                     <div className="min-w-0">
-                      <p className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                      <p className="flex items-center gap-2 text-sm font-medium text-navy-900 dark:text-navy-100">
                         <span className="truncate">{item.name ?? "(no name)"}</span>
                         <SourceBadge source={item.source} />
                       </p>
-                      <p className="font-mono text-xs text-slate-500">{item.instanceId}</p>
+                      <p className="font-mono text-xs text-navy-500 dark:text-navy-400">{item.instanceId}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <InstanceStateBadge state={item.state} />
@@ -237,7 +237,7 @@ function OverviewContent({ data }: { data: OverviewData }) {
             title="Recent activity"
             description="Sign-ins, configuration changes and provider errors"
             actions={
-              <Link href="/activity" className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900">
+              <Link href="/activity" className="inline-flex items-center gap-1 text-xs font-medium text-navy-600 dark:text-navy-400 hover:text-navy-900 dark:hover:text-navy-100">
                 View all <ArrowRight className="size-3.5" />
               </Link>
             }

@@ -165,43 +165,59 @@ EC2 doesn't publish memory or filesystem usage. The dashboard shows **"No data a
 | Memory Utilization | `CWAgent` | `mem_used_percent` |
 | Disk Usage (/) | `CWAgent` | `disk_used_percent` (dimension `path=/`) |
 
+The dashboard finds these metrics by `InstanceId`, so the agent config must append that dimension. The ready-made config is [deploy/cloudwatch-agent/amazon-cloudwatch-agent.json](../deploy/cloudwatch-agent/amazon-cloudwatch-agent.json).
+
 On each Ubuntu instance you want to monitor:
 
-1. Attach the AWS managed policy **`CloudWatchAgentServerPolicy`** to that instance's IAM role. It allows `cloudwatch:PutMetricData`. This is the monitored instance's role, not the dashboard's.
-2. Install the agent:
+1. **Let the instance publish metrics (Mac).** Add [iam-cwagent-policy.json](iam-cwagent-policy.json) to the instance's IAM role. It allows only `cloudwatch:PutMetricData`, and only into the `CWAgent` namespace:
 
-```bash
-wget https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
-```
+   ```bash
+   aws iam put-role-policy --role-name InfraWatchEC2Role --policy-name InfraWatchAgentPublish --policy-document file://docs/iam-cwagent-policy.json --profile default
+   ```
 
-```bash
-sudo dpkg -i -E ./amazon-cloudwatch-agent.deb
-```
+   The AWS managed policy `CloudWatchAgentServerPolicy` also works, but it allows more (CloudWatch Logs, SSM parameters, any metric namespace).
 
-(For ARM/Graviton instances, use `ubuntu/arm64` in the URL.)
+   When the dashboard runs on the instance it monitors, both share one role: the role can then write agent metrics, while the dashboard's code still only reads.
 
-3. Create `/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json`:
+2. **Install the agent (server).** For ARM/Graviton instances, use `ubuntu/arm64` in the URL.
 
-```json
-{
-  "agent": { "metrics_collection_interval": 60 },
-  "metrics": {
-    "append_dimensions": { "InstanceId": "${aws:InstanceId}" },
-    "metrics_collected": {
-      "mem": { "measurement": ["mem_used_percent"] },
-      "disk": { "measurement": ["used_percent"], "resources": ["/"] }
-    }
-  }
-}
-```
+   ```bash
+   wget https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+   ```
 
-4. Start the agent with that config:
+   ```bash
+   sudo dpkg -i -E ./amazon-cloudwatch-agent.deb
+   ```
 
-```bash
-sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
-```
+3. **Install the config (server, in the app folder):**
 
-Metrics appear in CloudWatch after a few minutes. Reference: [Installing the CloudWatch agent](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Install-CloudWatch-Agent.html).
+   ```bash
+   sudo cp deploy/cloudwatch-agent/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+   ```
+
+4. **Start the agent with that config (server).** It also starts on every boot.
+
+   ```bash
+   sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+   ```
+
+5. **Check (server, then Mac):**
+
+   ```bash
+   sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a status
+   ```
+
+   ```bash
+   aws cloudwatch list-metrics --namespace CWAgent --region ap-southeast-2 --output table
+   ```
+
+The first datapoints arrive after 1–2 minutes. The dashboard caches the list of agent metrics for 5 minutes, so the charts can take up to about 7 minutes to appear. Each metric the agent sends is a CloudWatch custom metric (the first 10 are in the free tier). Reference: [Installing the CloudWatch agent](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Install-CloudWatch-Agent.html).
+
+| Problem | Check |
+| --- | --- |
+| `status` is not `running` | `sudo tail -50 /opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log` |
+| Log shows `AccessDenied` for `PutMetricData` | Step 1 is missing, or the role isn't attached to the instance |
+| Metrics exist but the dashboard still says "Agent required" | Wait 5 minutes (cache), or the metrics lack the `InstanceId` dimension (config without `append_dimensions`) |
 
 ## 7. Notes on standard EC2 metrics
 

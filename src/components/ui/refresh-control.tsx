@@ -17,7 +17,7 @@ export function RefreshControl({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs text-slate-500" aria-live="polite">
+      <span className="text-xs text-navy-500 dark:text-navy-400" aria-live="polite">
         {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString("en-US", { hour12: false })}` : "Loading…"}
         {refreshIntervalSec ? ` · auto every ${refreshIntervalSec >= 60 ? `${refreshIntervalSec / 60}m` : `${refreshIntervalSec}s`}` : " · auto-refresh off"}
       </span>

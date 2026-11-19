@@ -6,13 +6,13 @@ export const sourceStyles: Record<DataSource, { label: string; title: string; cl
   AWS: {
     label: "AWS",
     title: "Real instance from your AWS account",
-    className: "bg-sky-50 text-sky-800 ring-sky-600/25",
+    className: "bg-ocean-50 dark:bg-ocean-500/10 text-ocean-800 dark:text-ocean-300 ring-ocean-600/25 dark:ring-ocean-400/30",
     icon: Cloud,
   },
   MOCK: {
     label: "Mock",
     title: "Generated demo data, not a real instance",
-    className: "bg-violet-50 text-violet-700 ring-violet-600/20",
+    className: "bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 ring-violet-600/20 dark:ring-violet-400/30",
     icon: FlaskConical,
   },
 };
@@ -48,14 +48,14 @@ export function SourceStatusNotice({ sources, className }: { sources: SourceStat
   return (
     <div className={cn("space-y-2", className)}>
       {failed.map((s) => (
-        <div key={s.source} role="alert" className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+        <div key={s.source} role="alert" className="flex items-start gap-3 rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-4 py-3 text-sm text-rose-900 dark:text-rose-200">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
           <div className="min-w-0">
             <p className="font-semibold">
               {sourceStyles[s.source].label} data unavailable
               {working.length > 0 ? <span className="font-normal"> · showing {working.join(" + ")} instances only</span> : null}
             </p>
-            <p className="mt-0.5 text-rose-800">{s.error?.message}</p>
+            <p className="mt-0.5 text-rose-800 dark:text-rose-300">{s.error?.message}</p>
           </div>
         </div>
       ))}

@@ -68,7 +68,7 @@ export function MonitoringView() {
         ) : null}
         {options && selected ? (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <label htmlFor="instance-select" className="text-sm font-medium text-slate-700 sm:w-20">
+            <label htmlFor="instance-select" className="text-sm font-medium text-navy-700 dark:text-navy-300 sm:w-20">
               Instance
             </label>
             <Select
@@ -86,7 +86,7 @@ export function MonitoringView() {
             <div className="flex items-center gap-3">
               <SourceBadge source={selected.source} />
               <InstanceStateBadge state={selected.state} />
-              <Link href={`/instances/${sourceSlug(selected.source)}/${selected.instanceId}`} className="text-sm font-medium text-sky-700 hover:underline">
+              <Link href={`/instances/${sourceSlug(selected.source)}/${selected.instanceId}`} className="text-sm font-medium text-ocean-700 dark:text-ocean-300 hover:underline">
                 Details
               </Link>
             </div>

@@ -37,7 +37,7 @@ export function ActivityView() {
         actions={<RefreshControl lastUpdated={lastUpdated} isRefreshing={isRefreshing} onRefresh={refetch} refreshIntervalSec={refreshIntervalSec} />}
       />
       <Card>
-        <div className="flex items-center gap-3 border-b border-slate-100 p-4">
+        <div className="flex items-center gap-3 border-b border-navy-100 dark:border-navy-800 p-4">
           <Select
             className="w-full sm:w-64"
             value={action}
@@ -71,7 +71,7 @@ export function ActivityView() {
           <>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
+                <thead className="bg-navy-50 dark:bg-navy-800/50 text-xs font-medium uppercase tracking-wide text-navy-500 dark:text-navy-400">
                   <tr>
                     <th scope="col" className="px-5 py-3">Event</th>
                     <th scope="col" className="px-3 py-3">User</th>
@@ -79,21 +79,21 @@ export function ActivityView() {
                     <th scope="col" className="px-5 py-3">Time</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-navy-100 dark:divide-navy-800">
                   {data.items.map((item) => (
                     <tr key={item.id}>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
                           <ActivityIcon action={item.action} />
                           <div className="min-w-0">
-                            <p className="text-slate-800">{item.description}</p>
-                            <p className="text-xs text-slate-500">{ACTIVITY_META[item.action]?.label ?? item.action}</p>
+                            <p className="text-navy-800 dark:text-navy-200">{item.description}</p>
+                            <p className="text-xs text-navy-500 dark:text-navy-400">{ACTIVITY_META[item.action]?.label ?? item.action}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-3 py-3 text-slate-700">{item.user ? item.user.email : <span className="text-slate-400">System</span>}</td>
-                      <td className="px-3 py-3 font-mono text-xs text-slate-600">{item.ipAddress ?? "—"}</td>
-                      <td className="whitespace-nowrap px-5 py-3 text-slate-700">{formatDateTime(item.createdAt)}</td>
+                      <td className="px-3 py-3 text-navy-700 dark:text-navy-300">{item.user ? item.user.email : <span className="text-navy-400 dark:text-navy-500">System</span>}</td>
+                      <td className="px-3 py-3 font-mono text-xs text-navy-600 dark:text-navy-400">{item.ipAddress ?? "—"}</td>
+                      <td className="whitespace-nowrap px-5 py-3 text-navy-700 dark:text-navy-300">{formatDateTime(item.createdAt)}</td>
                     </tr>
                   ))}
                 </tbody>

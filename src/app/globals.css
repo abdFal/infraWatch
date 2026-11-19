@@ -1,13 +1,72 @@
 @import "tailwindcss";
 
+/* `dark:` utilities apply when <html data-theme="dark"> (set by the theme script / toggle). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * InfraWatch palette, built from four colours:
+ *   #021526 deep navy   -> navy-950  (dark page, sidebar)
+ *   #03346E deep blue   -> ocean-800 (primary actions in light mode)
+ *   #6EACDA light blue  -> ocean-400 (accent, primary actions in dark mode)
+ *   #E2E2B6 cream       -> cream     (brand text on navy); also tints the light neutrals
+ *
+ * navy  = neutrals: cream-tinted paper at the light end, the palette navy at the dark end.
+ * ocean = accent blue between #6EACDA and #03346E.
+ * Status colours (emerald / amber / rose) and the violet MOCK badge stay Tailwind's
+ * defaults on purpose: they carry meaning and must not blend with the brand.
+ */
+@theme {
+  --color-navy-50: #f8f8ef;
+  --color-navy-100: #efefdf;
+  --color-navy-200: #dfdfca;
+  --color-navy-300: #b6bec6;
+  --color-navy-400: #8796a8;
+  --color-navy-500: #5c6f88;
+  --color-navy-600: #41546e;
+  --color-navy-700: #2b3e58;
+  --color-navy-800: #17304f;
+  --color-navy-900: #0a1f3a;
+  --color-navy-950: #021526;
+
+  --color-ocean-50: #eef5fb;
+  --color-ocean-100: #dcebf6;
+  --color-ocean-200: #bdd8ee;
+  --color-ocean-300: #95c2e4;
+  --color-ocean-400: #6eacda;
+  --color-ocean-500: #4b8fc4;
+  --color-ocean-600: #2f72aa;
+  --color-ocean-700: #1a568d;
+  --color-ocean-800: #03346e;
+  --color-ocean-900: #032a59;
+  --color-ocean-950: #021c3d;
+
+  --color-cream: #e2e2b6;
+}
+
 @theme inline {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-/* The dashboard uses a light content area with a dark sidebar. */
+/* Light by default; every surface, the sidebar included, follows data-theme. */
 :root {
   color-scheme: light;
+  /* Metric charts (Recharts reads these through var()). */
+  --chart-series: var(--color-ocean-600);
+  --chart-grid: var(--color-navy-100);
+  --chart-axis: var(--color-navy-500);
+  --chart-cursor: var(--color-navy-300);
+  --chart-surface: #ffffff;
+}
+
+/* Native controls (select menus, scrollbars) follow the theme too. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --chart-series: var(--color-ocean-400);
+  --chart-grid: var(--color-navy-800);
+  --chart-axis: var(--color-navy-400);
+  --chart-cursor: var(--color-navy-500);
+  --chart-surface: var(--color-navy-900);
 }
 
 body {

@@ -37,11 +37,11 @@ export function InstanceMetricsPanel({
     <section aria-label="CloudWatch metrics">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-slate-900">
+          <h2 className="text-base font-semibold text-navy-900 dark:text-navy-100">
             CloudWatch metrics
-            {source === "MOCK" ? <span className="ml-2 text-xs font-normal text-violet-700">(generated demo values)</span> : null}
+            {source === "MOCK" ? <span className="ml-2 text-xs font-normal text-violet-700 dark:text-violet-300">(generated demo values)</span> : null}
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-navy-500 dark:text-navy-400">
             {rangeInfo.label} · {periodLabel} period · rates are per second
           </p>
         </div>

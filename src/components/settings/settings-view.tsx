@@ -95,11 +95,11 @@ function RegionCard({ data, onSaved }: { data: SettingsData; onSaved: () => void
       <CardHeader
         title="AWS configuration"
         description="Application-wide. Applies to all users."
-        actions={!data.canEditAppSettings ? <span className="inline-flex items-center gap-1 text-xs text-slate-500"><Lock className="size-3.5" /> Admin only</span> : null}
+        actions={!data.canEditAppSettings ? <span className="inline-flex items-center gap-1 text-xs text-navy-500 dark:text-navy-400"><Lock className="size-3.5" /> Admin only</span> : null}
       />
       <CardBody className="space-y-4">
         <div>
-          <label htmlFor="region" className="text-sm font-medium text-slate-700">AWS Region</label>
+          <label htmlFor="region" className="text-sm font-medium text-navy-700 dark:text-navy-300">AWS Region</label>
           <Select id="region" className="mt-1.5" value={region} onChange={(e) => setRegion(e.target.value)} disabled={!data.canEditAppSettings || saving}>
             {AWS_REGIONS.map((r) => (
               <option key={r.code} value={r.code}>
@@ -107,14 +107,14 @@ function RegionCard({ data, onSaved }: { data: SettingsData; onSaved: () => void
               </option>
             ))}
           </Select>
-          <p className="mt-1.5 text-xs text-slate-500">
+          <p className="mt-1.5 text-xs text-navy-500 dark:text-navy-400">
             {data.app.updatedBy
               ? `Last changed by ${data.app.updatedBy} on ${formatDateTime(data.app.updatedAt)}.`
               : `Using the initial value from AWS_REGION (${data.environment.defaultRegion}).`}
           </p>
         </div>
-        <div className="flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
-          <KeyRound className="mt-0.5 size-4 shrink-0 text-slate-400" />
+        <div className="flex items-start gap-2 rounded-lg bg-navy-50 dark:bg-navy-800/50 p-3 text-xs text-navy-600 dark:text-navy-400">
+          <KeyRound className="mt-0.5 size-4 shrink-0 text-navy-400 dark:text-navy-500" />
           AWS credentials are never stored in the database or sent to the browser. In AWS mode the server uses the
           default credential provider chain (an IAM role on EC2, or an AWS CLI profile locally).
         </div>
@@ -158,22 +158,22 @@ function PreferencesCard({ data, onSaved }: { data: SettingsData; onSaved: () =>
       <CardHeader title="Monitoring preferences" description="Personal. Only affects your account." />
       <CardBody className="space-y-4">
         <div>
-          <label htmlFor="refresh" className="text-sm font-medium text-slate-700">Refresh interval</label>
+          <label htmlFor="refresh" className="text-sm font-medium text-navy-700 dark:text-navy-300">Refresh interval</label>
           <Select id="refresh" className="mt-1.5" value={refreshIntervalSec} onChange={(e) => setRefresh(Number(e.target.value))} disabled={saving}>
             {REFRESH_INTERVALS.map((r) => (
               <option key={r.value} value={r.value}>{r.label}</option>
             ))}
           </Select>
-          <p className="mt-1.5 text-xs text-slate-500">How often dashboards reload data automatically. Paused while the tab is hidden.</p>
+          <p className="mt-1.5 text-xs text-navy-500 dark:text-navy-400">How often dashboards reload data automatically. Paused while the tab is hidden.</p>
         </div>
         <div>
-          <label htmlFor="range" className="text-sm font-medium text-slate-700">Default time range</label>
+          <label htmlFor="range" className="text-sm font-medium text-navy-700 dark:text-navy-300">Default time range</label>
           <Select id="range" className="mt-1.5" value={defaultTimeRange} onChange={(e) => setRange(e.target.value as TimeRangeKey)} disabled={saving}>
             {TIME_RANGES.map((r) => (
               <option key={r.key} value={r.key}>{r.label}</option>
             ))}
           </Select>
-          <p className="mt-1.5 text-xs text-slate-500">Initial period for metric charts.</p>
+          <p className="mt-1.5 text-xs text-navy-500 dark:text-navy-400">Initial period for metric charts.</p>
         </div>
         <div className="flex justify-end">
           <Button variant="primary" onClick={save} disabled={!dirty || saving}>
@@ -207,11 +207,11 @@ function EnvironmentCard({ data }: { data: SettingsData }) {
   return (
     <Card className="lg:col-span-2">
       <CardHeader title="Application environment" description="Read-only. Configured through server environment variables." />
-      <dl className="divide-y divide-slate-100">
+      <dl className="divide-y divide-navy-100 dark:divide-navy-800">
         {rows.map(([label, value]) => (
           <div key={label} className="grid gap-1 px-5 py-3 text-sm sm:grid-cols-3">
-            <dt className="text-slate-500">{label}</dt>
-            <dd className="text-slate-900 sm:col-span-2">{value}</dd>
+            <dt className="text-navy-500 dark:text-navy-400">{label}</dt>
+            <dd className="text-navy-900 dark:text-navy-100 sm:col-span-2">{value}</dd>
           </div>
         ))}
       </dl>

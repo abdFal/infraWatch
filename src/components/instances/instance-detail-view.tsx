@@ -19,8 +19,8 @@ import { formatDateTime, formatUptime } from "@/lib/utils";
 function Field({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
     <div className="min-w-0">
-      <dt className="text-xs font-medium text-slate-500">{label}</dt>
-      <dd className={`mt-0.5 truncate text-sm text-slate-900 ${mono ? "font-mono text-[13px]" : ""}`}>{value ?? "—"}</dd>
+      <dt className="text-xs font-medium text-navy-500 dark:text-navy-400">{label}</dt>
+      <dd className={`mt-0.5 truncate text-sm text-navy-900 dark:text-navy-100 ${mono ? "font-mono text-[13px]" : ""}`}>{value ?? "—"}</dd>
     </div>
   );
 }
@@ -31,7 +31,7 @@ export function InstanceDetailView({ source, instanceId }: { source: DataSource;
   const { data: instance, error, isLoading, refetch } = useApi<Ec2Instance>(`/api/instances/${sourceSlug(source)}/${instanceId}`);
 
   const back = (
-    <Link href="/instances" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900">
+    <Link href="/instances" className="mb-4 inline-flex items-center gap-1 text-sm text-navy-500 dark:text-navy-400 hover:text-navy-900 dark:hover:text-navy-100">
       <ArrowLeft className="size-4" /> All instances
     </Link>
   );
@@ -75,11 +75,11 @@ export function InstanceDetailView({ source, instanceId }: { source: DataSource;
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="truncate text-xl font-semibold tracking-tight text-slate-900">{instance.name ?? "(no name)"}</h1>
+            <h1 className="truncate text-xl font-semibold tracking-tight text-navy-900 dark:text-navy-100">{instance.name ?? "(no name)"}</h1>
             <SourceBadge source={instance.source} />
             <InstanceStateBadge state={instance.state} />
           </div>
-          <p className="mt-1 font-mono text-sm text-slate-500">{instance.instanceId}</p>
+          <p className="mt-1 font-mono text-sm text-navy-500 dark:text-navy-400">{instance.instanceId}</p>
         </div>
         <Link href={`/monitoring?source=${sourceSlug(instance.source)}&instance=${instance.instanceId}&range=${range}`} className={buttonClasses({ size: "sm" })}>
           <LineChart className="size-4" /> Open in Monitoring
@@ -114,11 +114,11 @@ export function InstanceDetailView({ source, instanceId }: { source: DataSource;
             <CardHeader title="Status checks" description={instance.source === "AWS" ? "Reported by EC2" : "Generated demo values"} />
             <dl className="space-y-3 px-5 py-4">
               <div className="flex items-center justify-between gap-2">
-                <dt className="text-sm text-slate-600">System reachability</dt>
+                <dt className="text-sm text-navy-600 dark:text-navy-400">System reachability</dt>
                 <dd><StatusCheckBadge status={instance.systemStatus} /></dd>
               </div>
               <div className="flex items-center justify-between gap-2">
-                <dt className="text-sm text-slate-600">Instance reachability</dt>
+                <dt className="text-sm text-navy-600 dark:text-navy-400">Instance reachability</dt>
                 <dd><StatusCheckBadge status={instance.instanceStatus} /></dd>
               </div>
             </dl>
@@ -126,13 +126,13 @@ export function InstanceDetailView({ source, instanceId }: { source: DataSource;
           <Card>
             <CardHeader title="Tags" />
             {customTags.length === 0 ? (
-              <p className="px-5 py-4 text-sm text-slate-500">No tags other than Name.</p>
+              <p className="px-5 py-4 text-sm text-navy-500 dark:text-navy-400">No tags other than Name.</p>
             ) : (
-              <dl className="divide-y divide-slate-100">
+              <dl className="divide-y divide-navy-100 dark:divide-navy-800">
                 {customTags.map(([key, value]) => (
                   <div key={key} className="flex justify-between gap-3 px-5 py-2 text-sm">
-                    <dt className="truncate text-slate-500">{key}</dt>
-                    <dd className="truncate font-medium text-slate-800">{value}</dd>
+                    <dt className="truncate text-navy-500 dark:text-navy-400">{key}</dt>
+                    <dd className="truncate font-medium text-navy-800 dark:text-navy-200">{value}</dd>
                   </div>
                 ))}
               </dl>

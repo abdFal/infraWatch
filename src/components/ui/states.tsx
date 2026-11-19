@@ -17,11 +17,11 @@ export function EmptyState({
 }) {
   return (
     <div className={cn("flex flex-col items-center justify-center px-6 py-12 text-center", className)}>
-      <div className="mb-3 rounded-full bg-slate-100 p-3">
-        <Icon className="size-5 text-slate-500" />
+      <div className="mb-3 rounded-full bg-navy-100 dark:bg-navy-800 p-3">
+        <Icon className="size-5 text-navy-500 dark:text-navy-400" />
       </div>
-      <p className="text-sm font-medium text-slate-900">{title}</p>
-      {description ? <p className="mt-1 max-w-md text-sm text-slate-500">{description}</p> : null}
+      <p className="text-sm font-medium text-navy-900 dark:text-navy-100">{title}</p>
+      {description ? <p className="mt-1 max-w-md text-sm text-navy-500 dark:text-navy-400">{description}</p> : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );
@@ -43,11 +43,11 @@ export function ErrorState({
       role="alert"
       className={cn("flex flex-col items-center justify-center px-6 py-12 text-center", className)}
     >
-      <div className="mb-3 rounded-full bg-rose-50 p-3">
-        <AlertTriangle className="size-5 text-rose-600" />
+      <div className="mb-3 rounded-full bg-rose-50 dark:bg-rose-500/10 p-3">
+        <AlertTriangle className="size-5 text-rose-600 dark:text-rose-400" />
       </div>
-      <p className="text-sm font-medium text-slate-900">{title}</p>
-      <p className="mt-1 max-w-md text-sm text-slate-500">{message}</p>
+      <p className="text-sm font-medium text-navy-900 dark:text-navy-100">{title}</p>
+      <p className="mt-1 max-w-md text-sm text-navy-500 dark:text-navy-400">{message}</p>
       {onRetry ? (
         <Button className="mt-4" size="sm" onClick={onRetry}>
           Try again

@@ -93,9 +93,9 @@ export function InstancesView() {
       <SourceStatusNotice sources={data?.sources} className="mb-4" />
 
       <Card>
-        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-3 border-b border-navy-100 dark:border-navy-800 p-4 sm:flex-row sm:items-center">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-navy-400 dark:text-navy-500" />
             <input
               type="search"
               value={searchInput}
@@ -103,7 +103,7 @@ export function InstancesView() {
               placeholder="Search by instance ID or name"
               aria-label="Search instances by ID or name"
               maxLength={100}
-              className="h-9 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm shadow-xs placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+              className="h-9 w-full rounded-lg border border-navy-300 dark:border-navy-700 bg-white dark:bg-navy-900 pl-9 pr-3 text-sm shadow-xs placeholder:text-navy-400 dark:placeholder:text-navy-500 focus:border-navy-500 dark:focus:border-navy-400 focus:outline-none focus:ring-2 focus:ring-navy-200 dark:focus:ring-navy-700"
             />
           </div>
           <Select
@@ -159,7 +159,7 @@ export function InstancesView() {
           <>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[960px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
+                <thead className="bg-navy-50 dark:bg-navy-800/50 text-xs font-medium uppercase tracking-wide text-navy-500 dark:text-navy-400">
                   <tr>
                     <th scope="col" className="px-5 py-3">Instance</th>
                     <th scope="col" className="px-3 py-3">State</th>
@@ -170,29 +170,29 @@ export function InstancesView() {
                     <th scope="col" className="px-5 py-3">Launch time</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-navy-100 dark:divide-navy-800">
                   {data.items.map((instance) => (
-                    <tr key={`${instance.source}:${instance.instanceId}`} className="hover:bg-slate-50">
+                    <tr key={`${instance.source}:${instance.instanceId}`} className="hover:bg-navy-50 dark:hover:bg-navy-800/50">
                       <td className="px-5 py-3">
                         <Link href={`/instances/${sourceSlug(instance.source)}/${instance.instanceId}`} className="group block">
                           <span className="flex items-center gap-2">
-                            <span className="font-medium text-slate-900 group-hover:text-sky-700 group-hover:underline">
-                              {instance.name ?? <span className="italic text-slate-500">(no name)</span>}
+                            <span className="font-medium text-navy-900 dark:text-navy-100 group-hover:text-ocean-700 dark:group-hover:text-ocean-300 group-hover:underline">
+                              {instance.name ?? <span className="italic text-navy-500 dark:text-navy-400">(no name)</span>}
                             </span>
                             <SourceBadge source={instance.source} />
                           </span>
-                          <span className="block font-mono text-xs text-slate-500">{instance.instanceId}</span>
+                          <span className="block font-mono text-xs text-navy-500 dark:text-navy-400">{instance.instanceId}</span>
                         </Link>
                       </td>
                       <td className="px-3 py-3"><InstanceStateBadge state={instance.state} /></td>
-                      <td className="px-3 py-3 font-mono text-xs text-slate-700">{instance.instanceType}</td>
-                      <td className="px-3 py-3 text-slate-700">
+                      <td className="px-3 py-3 font-mono text-xs text-navy-700 dark:text-navy-300">{instance.instanceType}</td>
+                      <td className="px-3 py-3 text-navy-700 dark:text-navy-300">
                         {instance.region}
-                        <span className="block text-xs text-slate-500">{instance.availabilityZone ?? "—"}</span>
+                        <span className="block text-xs text-navy-500 dark:text-navy-400">{instance.availabilityZone ?? "—"}</span>
                       </td>
-                      <td className="px-3 py-3 font-mono text-xs text-slate-700">{instance.publicIp ?? "—"}</td>
-                      <td className="px-3 py-3 font-mono text-xs text-slate-700">{instance.privateIp ?? "—"}</td>
-                      <td className="whitespace-nowrap px-5 py-3 text-slate-700">{formatDateTime(instance.launchTime)}</td>
+                      <td className="px-3 py-3 font-mono text-xs text-navy-700 dark:text-navy-300">{instance.publicIp ?? "—"}</td>
+                      <td className="px-3 py-3 font-mono text-xs text-navy-700 dark:text-navy-300">{instance.privateIp ?? "—"}</td>
+                      <td className="whitespace-nowrap px-5 py-3 text-navy-700 dark:text-navy-300">{formatDateTime(instance.launchTime)}</td>
                     </tr>
                   ))}
                 </tbody>

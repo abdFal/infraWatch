@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   // rendering model instead of Cache Components to keep the code simple.
   cacheComponents: false,
   poweredByHeader: false,
+  // The Next.js dev-tools button (development only) defaults to bottom-left, where it
+  // covers the sidebar footer. Move it out of the navigation.
+  devIndicators: { position: "bottom-right" },
   turbopack: {
     rules: {
       "*.css": {
